@@ -2,59 +2,52 @@ import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.config.SslConfigs;
+import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Properties;
-import java.util.UUID;
 
 /**
- * Kafka SSL Producer
+ * Kafka Producer с SASL/PLAIN
  */
 public class Producer {
     private static final Logger logger = LoggerFactory.getLogger(Producer.class);
+    private static final String TOPIC_NAME = "sasl-plain-topic";
 
     public static void main(String[] args) {
+
+        // Конфигурация Kafka Producer
         Properties props = new Properties();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9093");
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
 
+        // Конфигурация SASL
+        props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT");
+        props.put(SaslConfigs.SASL_MECHANISM, "PLAIN");
+        props.put(SaslConfigs.SASL_JAAS_CONFIG,
+                "org.apache.kafka.common.security.plain.PlainLoginModule required " +
+                        "username=\"admin\" password=\"password\";");
 
-        // SSL Configuration with JKS
-        props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL");
-        props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, "kafka-1-creds/kafka-1.truststore.jks"); // Truststore
-        props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, "password"); // Truststore password
-        props.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, "kafka-1-creds/kafka-1.keystore.jks"); // Keystore
-        props.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, "password"); // Keystore password
-        props.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, "password"); // Key password
-        props.put(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, ""); // Отключение проверки hostname
 
         try (KafkaProducer<String, String> producer = new KafkaProducer<>(props)) {
-            for (int i = 1; i <= 10; i++) {
-                String key = "key-" + UUID.randomUUID();
-                String value = "SSL message " + i;
+            ProducerRecord<String, String> record = new ProducerRecord<>(TOPIC_NAME, "key", "SASL/PLAIN");
 
-                logger.info("Sending message {}: key={}, value={}", i, key, value);
+            producer.send(record, (metadata, exception) -> {
+                if (exception == null) {
+                    logger.info("Сообщение успешно отправлено в Kafka: " + metadata.toString());
+                    System.out.println(metadata);
+                } else {
+                    logger.error("Ошибка при отправке сообщения", exception);
 
-                ProducerRecord<String, String> record = new ProducerRecord<>("topic-1", key, value);
-                producer.send(record, (metadata, exception) -> {
-                    if (exception == null) {
-                        logger.info("Message sent: partition={}, offset={}", metadata.partition(), metadata.offset());
-                    } else {
-                        logger.error("Error while producing: ", exception);
-                        exception.printStackTrace();
-                    }
-                });
+                }
+            });
 
-                Thread.sleep(600);
-            }
             producer.flush();
-        } catch (Exception e) {
-            logger.error("Error while producing: ", e);
-            e.printStackTrace();
+        } catch (Throwable e) {
+            logger.error("Ошибка в Kafka Producer", e);
         }
     }
 }
