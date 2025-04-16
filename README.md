@@ -94,9 +94,21 @@ echo "password" > kafka-1-creds/kafka-1_truststore_creds
 topic-1
 topic-2
 
-kafka-topics --create --topic topic-1 --bootstrap-server localhost:9092 --partitions 2 --replication-factor 3
-kafka-topics --create --topic topic-2 --bootstrap-server localhost:9092 --partitions 2 --replication-factor 3
+kafka-topics \
+--create \
+--topic topic-1 \
+--bootstrap-server localhost:9092 \
+--command-config /tmp/adminclient-configs.conf \
+--partitions 2 \
+--replication-factor 3
 
+kafka-topics \
+--create \
+--topic topic-2 \
+--bootstrap-server localhost:9092 \
+--command-config /tmp/adminclient-configs.conf \
+--partitions 2 \
+--replication-factor 3
 
 Настроить права доступа:
 topic-1: Доступен как для продюсеров, так и для консьюмеров.
@@ -104,21 +116,18 @@ topic-2:
 Продюсеры могут отправлять сообщения.
 Консьюмеры не имеют доступа к чтению данных.
 
-
-kafka-acls --bootstrap-server SSL://localhost:9092 \
---command-config /tmp/adminclient-configs.conf \
---add --allow-principal User:user \
---operation read --operation write \
---topic topic-1
-
-kafka-acls --bootstrap-server SSL://localhost:9092 \
---command-config /tmp/adminclient-configs.conf \
---add --allow-principal User:user \
---operation read --operation read \
---topic topic-1
-
-kafka-acls --bootstrap-server SSL://localhost:9092 \
---command-config /tmp/adminclient-configs.conf \
---remove --allow-principal User:user \
+kafka-acls --bootstrap-server localhost:9092 \
+--add \
+--allow-principal User:ivan \
+--operation write \
 --operation read \
---topic topic-1
+--operation create \
+--topic topic-2 \
+--command-config /tmp/adminclient-configs.conf
+
+kafka-acls --bootstrap-server localhost:9092 \
+--add \
+--allow-principal User:ivan \
+--operation all \
+--group app-group \
+--command-config /tmp/adminclient-configs.conf

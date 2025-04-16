@@ -3,6 +3,8 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
@@ -20,24 +22,24 @@ public class Consumer {
 
     public static void main(String[] args) {
         Properties props = new Properties();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9093");
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, "consumer-ssl-group");
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092,localhost:19092,localhost:29092");
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "app-group");
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
-        // SSL Configuration with JKS
-        props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL");
-        props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, "kafka-1-creds/kafka-1.truststore.jks"); // Truststore
-        props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, "password"); // Truststore password
-        props.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, "kafka-1-creds/kafka-1.keystore.jks"); // Keystore
-        props.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, "password"); // Keystore password
-        props.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, "password"); // Key password
-        props.put(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, ""); // Отключение проверки hostname
+        props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL");
+        props.put(SaslConfigs.SASL_MECHANISM, "PLAIN");
+        props.put(SaslConfigs.SASL_JAAS_CONFIG,
+                "org.apache.kafka.common.security.plain.PlainLoginModule required " +
+                        "username=\"admin\" password=\"admin-secret\";");
+
+        props.put("ssl.truststore.location", "./kafka-1-creds/kafka-1.truststore.jks");
+        props.put("ssl.truststore.password", "password");
 
         KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
 
         try (consumer) {
-            consumer.subscribe(Collections.singletonList("topic-1"));
+            consumer.subscribe(Collections.singletonList("topic-2"));
             while (true) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(10));
                 for (ConsumerRecord<String, String> record : records) {
